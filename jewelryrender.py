@@ -100,7 +100,7 @@ class JewelryRender:
     @staticmethod
     def makerendervariants():
         # create a list with all variants for current obj to render
-        # format: [camera1 => [mesh1 => current_mat, mesh2 => current_mat...], camera2 => ...]
+        # format: [camera1 => [mesh1 => current_mat, mesh2 => current_mat...] 'GRAVI', camera2 => ...]
         for camera in JewelryRenderOptions.cameraslist:
             # one metal material to all metal meshes
             for metmaterial in JewelryRenderOptions.materialslist_met:
@@ -108,7 +108,6 @@ class JewelryRender:
                 for metmesh in __class__.objd_m:
                     objmetlist.append([metmesh, metmaterial])
                 # every gem material for every gem meshes
-                # gemmatslist = itertools.combinations_with_replacement(JewelryRenderOptions.materialslist_gem, len(__class__.objd_g))
                 gemmatslist = itertools.product(JewelryRenderOptions.materialslist_gem, repeat=len(__class__.objd_g))
                 for item in gemmatslist:
                     objgemlist = []  # list: mesh => material
@@ -118,12 +117,14 @@ class JewelryRender:
                     objalllist = objmetlist.copy()
                     objalllist.extend(objgemlist)
                     # add new variant to list
-                    __class__.variants.append([camera, objalllist])
+                    __class__.variants.append([camera, objalllist, 'NOGRAVI'])
+                    __class__.variants.append([camera, objalllist, 'GRAVI'])
         # print('-'*50)
         # for i in __class__.variants:
         #     print(i[0])
         #     for j in i[1]:
         #         print('    ', j[0].name, ' => ', j[1].name)
+        #     print(i[2])
         # print('-'*50)
 
     @staticmethod
@@ -138,6 +139,11 @@ class JewelryRender:
                 mesh.data.materials[0] = material
             else:
                 mesh.data.materials.append(material)
+        # use Gravi or not
+        if variant[2] == 'GRAVI':
+            __class__.gravion()
+        else:   # 'NOGRAVI'
+            __class__.gravioff()
 
     @staticmethod
     def getgravimesh():
@@ -148,39 +154,33 @@ class JewelryRender:
             return None
 
     @staticmethod
-    def setgravi():
-        gravimesh = __class__.getgravimesh()
-        if gravimesh:
-            # # v1 - remove the whole mesh
-            # bpy.data.objects.remove(gravimesh, True)
-            # for ob in __class__.obj:
-            #     if JewelryRenderOptions.options['gravi_mesh_name'] in ob.name:
-            #         __class__.obj.remove(ob)
-
-            # v2 - change material - set material with texture
-            # if gravimesh.data.materials:
-            #     gravimesh.data.materials[0] = bpy.data.materials[JewelryRenderOptions.options['gravimat']]
-            # else:
-            #     gravimesh.data.materials.append(bpy.data.materials[JewelryRenderOptions.options['gravimat']])
-
-            # if exists copy with gravi_name - use it, else create and use it
-            if gravimesh.data.materials and gravimesh.data.materials[0].use_fake_user:
-                matname_gravi = 'gravi_'+gravimesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]
-                if matname_gravi not in bpy.data.materials.keys():
-                    mat_gravi = gravimesh.data.materials[0].copy()
-                    mat_gravi.name = matname_gravi
-                    input = mat_gravi.node_tree.nodes['Gravi_Mix'].inputs['Fac']
-                    output = mat_gravi.node_tree.nodes['Gravi_Text'].outputs['Alpha']
-                    mat_gravi.node_tree.links.new(output, input)
-                gravimesh.data.materials[0] = bpy.data.materials[matname_gravi]
-                # change texture for gravi mesh
-                # load texture mask
-                texturename = os.path.splitext(__class__.objname)[0] + '.png'
-                bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
-                # set texture mask to gravi-mesh node tree and create links
-                gravimesh.data.materials[0].node_tree.nodes['Gravi_Text'].image = bpy.data.images[texturename]
+    def gravion():
+        # on gravi
+        if __class__.gravi:
+            gravimatname = __class__.gravi.name[:JewelryRenderOptions.materialidlength]+'GRAVI'
+            # if not exists - make copy from gravi mesh and on gravi
+            if gravimatname not in bpy.data.materials.keys():
+                # create copy from current (gravi off)
+                gravimat = __class__.gravi.data.materials[0].copy()
+                gravimat.name = gravimatname
+                # create link
+                input = gravimat.node_tree.nodes['Gravi_Mix'].inputs['Fac']
+                output = gravimat.node_tree.nodes['Gravi_Text'].outputs['Alpha']
+                gravimat.node_tree.links.new(output, input)
+            # set math with on gravi to gravi mesh
+            __class__.gravi.data.materials[0] = bpy.data.materials[gravimatname]
+            # load texture mask (evety time)
+            texturename = os.path.splitext(__class__.objname)[0] + '.png'
+            bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
+            # set texture mask to gravi-mesh node tree and create links
+            __class__.gravi.data.materials[0].node_tree.nodes['Gravi_Text'].image = bpy.data.images[texturename]
         else:
-            print('Error - no gravi mesh found to remove', bpy.data.objects.keys())
+            print('Error - no gravi mesh found ', bpy.data.objects.keys())
+
+    @staticmethod
+    def gravioff():
+        # off gravi
+        pass
 
     @staticmethod
     def selectobj():
