@@ -9,33 +9,30 @@ import json
 import os
 import bpy
 import math
+import itertools
 
 
 class JewelryRender:
 
-    objname = ''    # Name of current imported obj file
-    obj = []    # list of current obj meshes
-    turn = 1
-    cameras_1turn = []    # current working cameras list for 1 turn
-    cameras_2turn = []    # current working cameras list for 1 turn
+    objname = ''        # Name of current imported obj file
+    obj = []            # list of current obj meshes
+    objd_m = []         # list of current obj meshes with dynamic metals
+    objd_g = []         # list of current obj meshes with dynamic gems
+    gravi = None        # gravi mesh
+    mode = 'NOGRAVI'    # NOGRAVI, GRAVI
+    variants = []       # render variants for current obj
 
     @staticmethod
     def processobjlist(context):
-        # process obj list
+        # process next obj in list
         __class__.clear()
         if JewelryRenderOptions.objlist:
             __class__.objname = JewelryRenderOptions.objlist.pop()
             __class__.importobj(context, __class__.objname)
             if __class__.obj:
-                __class__.setmeterialstoobj(context)
                 __class__.transformobj(context)
-                # 1 turn (with gravi)
-                __class__.cameras_1turn = JewelryRenderOptions.cameraslist.copy()
-                # 2 turn (without gravi)
-                if __class__.getgravimesh():
-                    __class__.cameras_2turn = JewelryRenderOptions.cameraslist.copy()
-                else:
-                    print('Warning - no gravi mesh found', bpy.data.objects.keys())
+                __class__.setstablematerialstoobj(context)
+                __class__.makerendervariants()
                 __class__.render(context)
             else:
                 print('Error - no meshes in obj ')
@@ -52,26 +49,31 @@ class JewelryRender:
         rez = bpy.ops.import_scene.obj(filepath=JewelryRenderOptions.options['source_obj_dir'] + os.sep + filename, use_smooth_groups=False, use_split_groups=True)
         if rez == {'FINISHED'}:
             __class__.obj = context.selected_objects
+            __class__.gravi = __class__.getgravimesh()
+            for mesh in __class__.obj:
+                if int(mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]) == 0:
+                    if mesh.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid:
+                        __class__.objd_m.append(mesh)
+                    elif mesh.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid:
+                        __class__.objd_g.append(mesh)
         else:
             print('Error importing ', filename)
             __class__.processobjlist(context)   # process next obj
 
 
     @staticmethod
-    def setmeterialstoobj(context):
-        # set materials to current obj
+    def setstablematerialstoobj(context):
+        # set stable materials to current obj
         if __class__.obj:
             for mesh in __class__.obj:
-                # materialid = mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]  # by obj material name
                 materialid = mesh.name[:JewelryRenderOptions.materialidlength]  # by obj mesh name
-                if materialid == JewelryRenderOptions.options['gravi_mesh_name']:   # gravi mesh (name = 'GraviMet01')
-                    materialid = mesh.name[JewelryRenderOptions.materialidlength:][:JewelryRenderOptions.materialidlength]
-                for material in JewelryRenderOptions.materialslist:     # all other meshes
-                    if material.name[:JewelryRenderOptions.materialidlength] == materialid:
-                        if mesh.data.materials:
-                            mesh.data.materials[0] = material
-                        else:
-                            mesh.data.materials.append(material)
+                if int(materialid[JewelryRenderOptions.materialidtextlength:]) != 0:    # number not 00 - stable material
+                    for material in JewelryRenderOptions.materialslist:
+                        if material.name[:JewelryRenderOptions.materialidlength] == materialid:
+                            if mesh.data.materials:
+                                mesh.data.materials[0] = material
+                            else:
+                                mesh.data.materials.append(material)
 
     @staticmethod
     def transformobj(context):
@@ -95,6 +97,47 @@ class JewelryRender:
         bpy.ops.transform.rotate(value=JewelryRenderOptions.options['correction']['rotate']['Z']*math.pi/180,
                                  axis=(0, 0, 1),
                                  constraint_orientation='LOCAL')
+    @staticmethod
+    def makerendervariants():
+        # create a list with all variants for current obj to render
+        # format: [camera1 => [mesh1 => current_mat, mesh2 => current_mat...], camera2 => ...]
+        for camera in JewelryRenderOptions.cameraslist:
+            # one metal material to all metal meshes
+            for metmaterial in JewelryRenderOptions.materialslist_met:
+                objmetlist = []  # list: mesh => material
+                for metmesh in __class__.objd_m:
+                    objmetlist.append([metmesh, metmaterial])
+                # every gem material for every gem meshes
+                gemmatslist = itertools.combinations_with_replacement(JewelryRenderOptions.materialslist_gem, len(__class__.objd_g))
+                for item in gemmatslist:
+                    objgemlist = []  # list: mesh => material
+                    for i, mat in enumerate(item):
+                        objgemlist.append([__class__.objd_g[i], mat])
+                    # met + gem
+                    objalllist = objmetlist.copy()
+                    objalllist.extend(objgemlist)
+                    # add new variant to list
+                    __class__.variants.append([camera, objalllist])
+        # print('-'*50)
+        # for i in __class__.variants:
+        #     print(i[0])
+        #     for j in i[1]:
+        #         print('    ', j[0].name, ' => ', j[1].name)
+        # print('-'*50)
+
+    @staticmethod
+    def setscenevariant(context, variant):
+        # set scene by current variant from __class__.variants
+        # select camera
+        context.scene.camera = variant[0]
+        # materials to meshes
+        for meshmat in variant[1]:
+            mesh, material = meshmat
+            if mesh.data.materials:
+                mesh.data.materials[0] = material
+            else:
+                mesh.data.materials.append(material)
+
     @staticmethod
     def getgravimesh():
         gravimesh = [gravi for gravi in bpy.data.objects.keys() if JewelryRenderOptions.options['gravi_mesh_name'] in gravi]
@@ -167,19 +210,12 @@ class JewelryRender:
 
     @staticmethod
     def render(context):
-        # statrt render by cameras
-        if __class__.cameras_1turn:
-            context.scene.camera = __class__.cameras_1turn.pop()
-            if __class__.onrenderfinished not in bpy.app.handlers.render_complete:
-                bpy.app.handlers.render_complete.append(__class__.onrenderfinished)
-            if __class__.onrendercancel not in bpy.app.handlers.render_cancel:
-                bpy.app.handlers.render_cancel.append(__class__.onrendercancel)
-            if __class__.onsceneupdate not in bpy.app.handlers.scene_update_post:
-                bpy.app.handlers.scene_update_post.append(__class__.onsceneupdate)
-        elif __class__.cameras_2turn:
-            __class__.setgravi()
-            __class__.turn = 2
-            context.scene.camera = __class__.cameras_2turn.pop()
+        # statrt render by variants
+        if __class__.variants:
+            currentvariant = __class__.variants.pop()
+            # set scene to current variant
+            __class__.setscenevariant(context, currentvariant)
+            # statr render from events
             if __class__.onrenderfinished not in bpy.app.handlers.render_complete:
                 bpy.app.handlers.render_complete.append(__class__.onrenderfinished)
             if __class__.onrendercancel not in bpy.app.handlers.render_cancel:
@@ -187,7 +223,7 @@ class JewelryRender:
             if __class__.onsceneupdate not in bpy.app.handlers.scene_update_post:
                 bpy.app.handlers.scene_update_post.append(__class__.onsceneupdate)
         else:
-            # 2 turns done - move files
+            # done - move obj files to rendered
             if __class__.objname:
                 __class__.moveobjtorendered(__class__.objname)
             # and process next obj
@@ -199,9 +235,10 @@ class JewelryRender:
         if __class__.obj:
             __class__.removeobj()
         __class__.obj = []
-        __class__.turn = 1
-        __class__.cameras_1turn = []
-        __class__.cameras_2turn = []
+        __class__.objd = []
+        __class__.gravi = None
+        __class__.mode = 'NOGRAVI'
+        __class__.variants = []
         if __class__.onrenderfinished in bpy.app.handlers.render_complete:
             bpy.app.handlers.render_complete.remove(__class__.onrenderfinished)
         if __class__.onrendercancel in bpy.app.handlers.render_cancel:
@@ -268,7 +305,12 @@ class JewelryRenderOptions:
     objlist = []    # list of filenames
     cameraslist = []
     materialslist = []
-    materialidlength = 5    # identifier length (ex: MET01, GOL01)
+    materialslist_met = []
+    materialslist_gem = []
+    materialidlength = 5        # identifier length (ex: MET01, GEM01)
+    materialidtextlength = 3    # identifier material length (ex: MET, GEM)
+    materialmetid = 'Met'
+    materialgemid = 'Gem'
 
     @staticmethod
     def readfromfile(dir):
