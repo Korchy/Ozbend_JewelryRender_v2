@@ -108,7 +108,8 @@ class JewelryRender:
                 for metmesh in __class__.objd_m:
                     objmetlist.append([metmesh, metmaterial])
                 # every gem material for every gem meshes
-                gemmatslist = itertools.combinations_with_replacement(JewelryRenderOptions.materialslist_gem, len(__class__.objd_g))
+                # gemmatslist = itertools.combinations_with_replacement(JewelryRenderOptions.materialslist_gem, len(__class__.objd_g))
+                gemmatslist = itertools.product(JewelryRenderOptions.materialslist_gem, repeat=len(__class__.objd_g))
                 for item in gemmatslist:
                     objgemlist = []  # list: mesh => material
                     for i, mat in enumerate(item):
@@ -286,8 +287,8 @@ class JewelryRender:
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:
                     path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat
             path += '_' + camera.name     # + camera
-            if __class__.turn == 1:
-                path += '_noeng'
+            # if __class__.turn == 1:
+            #     path += '_noeng'
             path += '.jpg'
             for currentarea in bpy.context.window_manager.windows[0].screen.areas:
                 if currentarea.type == 'IMAGE_EDITOR':
