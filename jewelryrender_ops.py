@@ -10,7 +10,7 @@ from .jewelryrender import JewelryRenderOptions
 import os
 
 class JewelryRenderStart(bpy.types.Operator):
-    bl_idname = 'jewelryrender.start'
+    bl_idname = 'jewelryrender2.start'
     bl_label = 'Start JewelryRender'
     bl_options = {'REGISTER', 'UNDO'}
 
