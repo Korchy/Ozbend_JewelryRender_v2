@@ -292,9 +292,12 @@ class JewelryRender:
     def saverenderrezult(camera):
         if os.path.exists(JewelryRenderOptions.options['dest_dir']):
             path = JewelryRenderOptions.options['dest_dir'] + os.sep + os.path.splitext(__class__.objname)[0]   # dir + filename
-            for mesh in __class__.obj:
+            for mesh in sorted(__class__.obj, reverse=True, key=lambda x: x.name):
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:
-                    path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat
+                    if mesh.data.materials:
+                        path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat from mesh material
+                    else:
+                        path += '_' + mesh.name[:JewelryRenderOptions.materialidlength]  # + mat from mesh name (no material assigned to mesh)
             path += '_' + camera.name     # + camera
             if __class__.mode == 'NOGRAVI':
                 path += '_noeng'
