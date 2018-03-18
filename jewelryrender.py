@@ -70,10 +70,7 @@ class JewelryRender:
                 if int(materialid[JewelryRenderOptions.materialidtextlength:]) != 0:    # number not 00 - stable material
                     for material in JewelryRenderOptions.materialslist:
                         if material.name[:JewelryRenderOptions.materialidlength] == materialid:
-                            if mesh.data.materials:
-                                mesh.data.materials[0] = material
-                            else:
-                                mesh.data.materials.append(material)
+                            __class__.setmaterialtomesh(mesh, material)
 
     @staticmethod
     def transformobj(context):
@@ -134,16 +131,14 @@ class JewelryRender:
         context.scene.camera = variant[0]
         # materials to meshes
         for meshmat in variant[1]:
-            mesh, material = meshmat
-            if mesh.data.materials:
-                mesh.data.materials[0] = material
-            else:
-                mesh.data.materials.append(material)
+            __class__.setmaterialtomesh(meshmat[0], meshmat[1])
         # use Gravi or not
         if variant[2] == 'GRAVI':
             __class__.gravion()
+            __class__.mode = 'GRAVI'
         else:   # 'NOGRAVI'
             __class__.gravioff()
+            __class__.mode = 'NOGRAVI'
 
     @staticmethod
     def getgravimesh():
@@ -157,12 +152,13 @@ class JewelryRender:
     def gravion():
         # on gravi
         if __class__.gravi:
-            gravimatname = __class__.gravi.name[:JewelryRenderOptions.materialidlength]+'GRAVI'
+            gravimatname = __class__.gravi.data.materials[0].name[:JewelryRenderOptions.materialidlength]+'GRAVI'
             # if not exists - make copy from gravi mesh and on gravi
             if gravimatname not in bpy.data.materials.keys():
                 # create copy from current (gravi off)
                 gravimat = __class__.gravi.data.materials[0].copy()
                 gravimat.name = gravimatname
+                gravimat.use_fake_user = False
                 # create link
                 input = gravimat.node_tree.nodes['Gravi_Mix'].inputs['Fac']
                 output = gravimat.node_tree.nodes['Gravi_Text'].outputs['Alpha']
@@ -180,7 +176,18 @@ class JewelryRender:
     @staticmethod
     def gravioff():
         # off gravi
-        pass
+        if __class__.gravi:
+            material = [mat for mat in bpy.data.materials if __class__.gravi.data.materials[0].name[:JewelryRenderOptions.materialidlength] in mat.name and mat.use_fake_user]
+            if material:
+                __class__.setmaterialtomesh(__class__.gravi, material[0])
+
+    @staticmethod
+    def setmaterialtomesh(mesh, material):
+        if mesh and material:
+            if mesh.data.materials:
+                mesh.data.materials[0] = material
+            else:
+                mesh.data.materials.append(material)
 
     @staticmethod
     def selectobj():
@@ -207,6 +214,7 @@ class JewelryRender:
         # remove obj meshes from scene
         if __class__.obj:
             for ob in __class__.obj:
+                # ob.name = ob.name + '_rem'  # to prevent error while removing and then importing meshes with the same name
                 bpy.data.objects.remove(ob, True)
 
     @staticmethod
@@ -236,7 +244,8 @@ class JewelryRender:
         if __class__.obj:
             __class__.removeobj()
         __class__.obj = []
-        __class__.objd = []
+        __class__.objd_m = []
+        __class__.objd_g = []
         __class__.gravi = None
         __class__.mode = 'NOGRAVI'
         __class__.variants = []
@@ -287,8 +296,8 @@ class JewelryRender:
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:
                     path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat
             path += '_' + camera.name     # + camera
-            # if __class__.turn == 1:
-            #     path += '_noeng'
+            if __class__.mode == 'NOGRAVI':
+                path += '_noeng'
             path += '.jpg'
             for currentarea in bpy.context.window_manager.windows[0].screen.areas:
                 if currentarea.type == 'IMAGE_EDITOR':
