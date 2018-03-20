@@ -115,7 +115,8 @@ class JewelryRender:
                     objalllist.extend(objgemlist)
                     # add new variant to list
                     __class__.variants.append([camera, objalllist, 'NOGRAVI'])
-                    __class__.variants.append([camera, objalllist, 'GRAVI'])
+                    if __class__.gravi:
+                        __class__.variants.append([camera, objalllist, 'GRAVI'])
         # print('-'*50)
         # for i in __class__.variants:
         #     print(i[0])
@@ -201,10 +202,16 @@ class JewelryRender:
         if os.path.exists(JewelryRenderOptions.options['rendered_obj_dir']):
             clearname = os.path.splitext(objname)[0]
             if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.obj')):
+                if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.obj')):
+                    os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.obj'))
                 os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.obj'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.obj'))
             if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.mtl')):
+                if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl')):
+                    os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl'))
                 os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.mtl'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl'))
             if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.png')):
+                if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.png')):
+                    os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.png'))
                 os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.png'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.png'))
         else:
             print('Error - rendered obj directory not exists')
