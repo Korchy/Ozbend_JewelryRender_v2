@@ -301,7 +301,7 @@ class JewelryRender:
             path += '_' + camera.name     # + camera
             if __class__.mode == 'NOGRAVI':
                 path += '_noeng'
-            path += '.jpg'
+            path += '.png'
             for currentarea in bpy.context.window_manager.windows[0].screen.areas:
                 if currentarea.type == 'IMAGE_EDITOR':
                     overridearea = bpy.context.copy()
