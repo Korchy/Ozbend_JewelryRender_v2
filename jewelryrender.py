@@ -114,9 +114,12 @@ class JewelryRender:
                     objalllist = objmetlist.copy()
                     objalllist.extend(objgemlist)
                     # add new variant to list
-                    __class__.variants.append([camera, objalllist, 'NOGRAVI'])
-                    if __class__.gravi:
-                        __class__.variants.append([camera, objalllist, 'GRAVI'])
+                    newvariant_ng = [camera, objalllist, 'NOGRAVI']
+                    newvariant_g = [camera, objalllist, 'GRAVI']
+                    if newvariant_ng not in __class__.variants:
+                        __class__.variants.append(newvariant_ng.copy())
+                    if __class__.gravi and newvariant_g not in __class__.variants:
+                        __class__.variants.append(newvariant_g.copy())
         # print('-'*50)
         # for i in __class__.variants:
         #     print(i[0])
