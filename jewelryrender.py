@@ -18,7 +18,7 @@ class JewelryRender:
     obj = []            # list of current obj meshes
     objd_m = []         # list of current obj meshes with dynamic metals
     objd_g = []         # list of current obj meshes with dynamic gems
-    gravi = None        # gravi mesh
+    gravi = []          # gravi meshes list
     mode = 'NOGRAVI'    # NOGRAVI, GRAVI
     variants = []       # render variants for current obj
 
@@ -146,44 +146,46 @@ class JewelryRender:
 
     @staticmethod
     def getgravimesh():
-        gravimesh = [gravi for gravi in bpy.data.objects.keys() if JewelryRenderOptions.options['gravi_mesh_name'] in gravi]
-        if gravimesh:
-            return bpy.data.objects[sorted(gravimesh, reverse=True)[0]]
-        else:
-            return None
+        return [gravi for gravi in bpy.data.objects if JewelryRenderOptions.options['gravi_mesh_name'] in gravi.name]
 
     @staticmethod
     def gravion():
         # on gravi
         if __class__.gravi:
-            gravimatname = __class__.gravi.data.materials[0].name[:JewelryRenderOptions.materialidlength]+'GRAVI'
-            # if not exists - make copy from gravi mesh and on gravi
-            if gravimatname not in bpy.data.materials.keys():
-                # create copy from current (gravi off)
-                gravimat = __class__.gravi.data.materials[0].copy()
-                gravimat.name = gravimatname
-                gravimat.use_fake_user = False
-                # create link
-                input = gravimat.node_tree.nodes['Gravi_Mix'].inputs['Fac']
-                output = gravimat.node_tree.nodes['Gravi_Text'].outputs['Alpha']
-                gravimat.node_tree.links.new(output, input)
-            # set math with on gravi to gravi mesh
-            __class__.gravi.data.materials[0] = bpy.data.materials[gravimatname]
-            # load texture mask (evety time)
-            texturename = os.path.splitext(__class__.objname)[0] + '.png'
-            bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
-            # set texture mask to gravi-mesh node tree and create links
-            __class__.gravi.data.materials[0].node_tree.nodes['Gravi_Text'].image = bpy.data.images[texturename]
+            for gravi in __class__.gravi:
+                gravinum = __class__.graviindex(gravi)  # 01 ...
+                gravimatname = gravi.data.materials[0].name[:JewelryRenderOptions.materialidlength] + 'GRAVI' + gravinum
+                # if not exists - make copy from gravi mesh and on gravi
+                if gravimatname not in bpy.data.materials.keys():
+                    # create copy from current (gravi off)
+                    gravimat = gravi.data.materials[0].copy()
+                    gravimat.name = gravimatname
+                    gravimat.use_fake_user = False
+                    # create link
+                    input = gravimat.node_tree.nodes['Gravi_Mix'].inputs['Fac']
+                    output = gravimat.node_tree.nodes['Gravi_Text'].outputs['Alpha']
+                    gravimat.node_tree.links.new(output, input)
+                    # load texture mask
+                    texturename = os.path.splitext(__class__.objname)[0] + gravinum + '.png'
+                    print('texture name ', texturename)
+                    if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename)):
+                        bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
+                        # set texture mask to gravi-mesh node tree and create links
+                        gravimat.node_tree.nodes['Gravi_Text'].image = bpy.data.images[texturename]
+                    else:
+                        print('Error - no texture file with gravi')
+                # set mat with on gravi to gravi mesh
+                gravi.data.materials[0] = bpy.data.materials[gravimatname]
         else:
             print('Error - no gravi mesh found ', bpy.data.objects.keys())
 
     @staticmethod
     def gravioff():
         # off gravi
-        if __class__.gravi:
-            material = [mat for mat in bpy.data.materials if __class__.gravi.data.materials[0].name[:JewelryRenderOptions.materialidlength] in mat.name and mat.use_fake_user]
+        for gravi in __class__.gravi:
+            material = [mat for mat in bpy.data.materials if gravi.data.materials[0].name[:JewelryRenderOptions.materialidlength] in mat.name and mat.use_fake_user]
             if material:
-                __class__.setmaterialtomesh(__class__.gravi, material[0])
+                __class__.setmaterialtomesh(gravi, material[0])
 
     @staticmethod
     def setmaterialtomesh(mesh, material):
@@ -200,6 +202,11 @@ class JewelryRender:
                 ob.select = True
 
     @staticmethod
+    def graviindex(gravi):
+        # 01 from Met01Gravi01
+        return gravi.name[:12][10:]
+
+    @staticmethod
     def moveobjtorendered(objname):
         # move processed obj-file to archive directory
         if os.path.exists(JewelryRenderOptions.options['rendered_obj_dir']):
@@ -212,10 +219,11 @@ class JewelryRender:
                 if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl')):
                     os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl'))
                 os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.mtl'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl'))
-            if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.png')):
-                if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.png')):
-                    os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.png'))
-                os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.png'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.png'))
+            for gravi in __class__.gravi:
+                if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + __class__.graviindex(gravi) + '.png')):
+                    if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + __class__.graviindex(gravi) + '.png')):
+                        os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'))
+                    os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'))
         else:
             print('Error - rendered obj directory not exists')
 
@@ -256,7 +264,7 @@ class JewelryRender:
         __class__.obj = []
         __class__.objd_m = []
         __class__.objd_g = []
-        __class__.gravi = None
+        __class__.gravi = []
         __class__.mode = 'NOGRAVI'
         __class__.variants = []
         if __class__.onrenderfinished in bpy.app.handlers.render_complete:
@@ -302,12 +310,18 @@ class JewelryRender:
     def saverenderrezult(camera):
         if os.path.exists(JewelryRenderOptions.options['dest_dir']):
             path = JewelryRenderOptions.options['dest_dir'] + os.sep + os.path.splitext(__class__.objname)[0]   # dir + filename
+            # + mat from mesh (not gravi)
             for mesh in sorted(__class__.obj, reverse=True, key=lambda x: x.name):
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:
                     if mesh.data.materials:
                         path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat from mesh material
                     else:
                         path += '_' + mesh.name[:JewelryRenderOptions.materialidlength]  # + mat from mesh name (no material assigned to mesh)
+            # + mat from gravi (if no other meshes)
+            if __class__.gravi:
+                if __class__.gravi[0].data.materials[0].name[:JewelryRenderOptions.materialidlength] not in path:
+                    path += __class__.gravi[0].data.materials[0].name[:JewelryRenderOptions.materialidlength]
+            # + camera
             path += '_' + camera.name     # + camera
             if __class__.mode == 'NOGRAVI':
                 path += '_noeng'
