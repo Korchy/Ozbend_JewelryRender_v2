@@ -167,7 +167,7 @@ class JewelryRender:
                     gravimat.node_tree.links.new(output, input)
                 # load texture mask
                 texturename = os.path.splitext(__class__.objname)[0] + gravinum + '.png'
-                print('texture name ', texturename)
+                # print('texture name ', texturename)
                 if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename)):
                     bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
                     # set texture mask to gravi-mesh node tree and create links
