@@ -165,15 +165,15 @@ class JewelryRender:
                     input = gravimat.node_tree.nodes['Gravi_Mix'].inputs['Fac']
                     output = gravimat.node_tree.nodes['Gravi_Text'].outputs['Alpha']
                     gravimat.node_tree.links.new(output, input)
-                    # load texture mask
-                    texturename = os.path.splitext(__class__.objname)[0] + gravinum + '.png'
-                    print('texture name ', texturename)
-                    if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename)):
-                        bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
-                        # set texture mask to gravi-mesh node tree and create links
-                        gravimat.node_tree.nodes['Gravi_Text'].image = bpy.data.images[texturename]
-                    else:
-                        print('Error - no texture file with gravi')
+                # load texture mask
+                texturename = os.path.splitext(__class__.objname)[0] + gravinum + '.png'
+                print('texture name ', texturename)
+                if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename)):
+                    bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
+                    # set texture mask to gravi-mesh node tree and create links
+                    bpy.data.materials[gravimatname].node_tree.nodes['Gravi_Text'].image = bpy.data.images[texturename]
+                else:
+                    print('Error - no texture file with gravi')
                 # set mat with on gravi to gravi mesh
                 gravi.data.materials[0] = bpy.data.materials[gravimatname]
         else:
