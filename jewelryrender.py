@@ -167,7 +167,6 @@ class JewelryRender:
                     gravimat.node_tree.links.new(output, input)
                 # load texture mask
                 texturename = os.path.splitext(__class__.objname)[0] + gravinum + '.png'
-                # print('texture name ', texturename)
                 if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename)):
                     bpy.data.images.load(os.path.join(JewelryRenderOptions.options['source_obj_dir'], texturename), check_existing=True)
                     # set texture mask to gravi-mesh node tree and create links
@@ -313,10 +312,11 @@ class JewelryRender:
             # + mat from mesh (not gravi)
             for mesh in sorted(__class__.obj, reverse=True, key=lambda x: x.name):
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:
-                    if mesh.data.materials:
-                        path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat from mesh material
-                    else:
-                        path += '_' + mesh.name[:JewelryRenderOptions.materialidlength]  # + mat from mesh name (no material assigned to mesh)
+                    if mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength] == '00':  # only for meshes with dynamic materials
+                        if mesh.data.materials:
+                            path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat from mesh material
+                        else:
+                            path += '_' + mesh.name[:JewelryRenderOptions.materialidlength]  # + mat from mesh name (no material assigned to mesh)
             # + mat from gravi (if no other meshes)
             if __class__.gravi:
                 if __class__.gravi[0].data.materials[0].name[:JewelryRenderOptions.materialidlength] not in path:
