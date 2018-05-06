@@ -29,7 +29,12 @@ class JewelryRenderStart(bpy.types.Operator):
             if JewelryRenderOptions.options['source_obj_dir'] and os.path.exists(JewelryRenderOptions.options['source_obj_dir']):
                 JewelryRenderOptions.objlist = [file for file in os.listdir(JewelryRenderOptions.options['source_obj_dir']) if file.endswith(".obj")]
             # serch for cameras
-            JewelryRenderOptions.cameraslist = [object for object in context.screen.scene.objects if object.type=='CAMERA']
+            if JewelryRenderOptions.options['cameras']:
+                # from options.json
+                JewelryRenderOptions.cameraslist = [obj for obj in context.screen.scene.objects if obj.type == 'CAMERA' and int(obj.name[-2:]) in JewelryRenderOptions.options['cameras']]
+            else:
+                # no selection - all cameras from scene
+                JewelryRenderOptions.cameraslist = [obj for obj in context.screen.scene.objects if obj.type == 'CAMERA']
             # search for materials
             JewelryRenderOptions.materialslist = [material for material in bpy.data.materials if material.use_fake_user]
             JewelryRenderOptions.materialslist_gem = [material for material in JewelryRenderOptions.materialslist if material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid]
