@@ -206,23 +206,30 @@ class JewelryRender:
         return gravi.name[:12][10:]
 
     @staticmethod
-    def moveobjtorendered(objname):
+    def moveobjtorendered(context, objname):
         # move processed obj-file to archive directory
-        if os.path.exists(JewelryRenderOptions.options['rendered_obj_dir']):
+        path = JewelryRenderOptions.options['rendered_obj_dir']
+        if context.scene.jewelry_render_vars.res_to_dirs:
+            path = JewelryRenderOptions.options['dest_dir']
+        if os.path.exists(path):
             clearname = os.path.splitext(objname)[0]
+            if context.scene.jewelry_render_vars.res_to_dirs:
+                path = os.path.join(path, clearname)    # dir/obj_name/
+                if not os.path.exists(path):
+                    os.makedirs(path)
             if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.obj')):
-                if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.obj')):
-                    os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.obj'))
-                os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.obj'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.obj'))
+                if os.path.exists(os.path.join(path, clearname + '.obj')):
+                    os.remove(os.path.join(path, clearname + '.obj'))
+                os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.obj'), os.path.join(path, clearname + '.obj'))
             if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.mtl')):
-                if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl')):
-                    os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl'))
-                os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.mtl'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + '.mtl'))
+                if os.path.exists(os.path.join(path, clearname + '.mtl')):
+                    os.remove(os.path.join(path, clearname + '.mtl'))
+                os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + '.mtl'), os.path.join(path, clearname + '.mtl'))
             for gravi in __class__.gravi:
                 if os.path.exists(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + __class__.graviindex(gravi) + '.png')):
-                    if os.path.exists(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + __class__.graviindex(gravi) + '.png')):
-                        os.remove(os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'))
-                    os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'), os.path.join(JewelryRenderOptions.options['rendered_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'))
+                    if os.path.exists(os.path.join(path, clearname + __class__.graviindex(gravi) + '.png')):
+                        os.remove(os.path.join(path, clearname + __class__.graviindex(gravi) + '.png'))
+                    os.rename(os.path.join(JewelryRenderOptions.options['source_obj_dir'], clearname + __class__.graviindex(gravi) + '.png'), os.path.join(path, clearname + __class__.graviindex(gravi) + '.png'))
         else:
             print('Error - rendered obj directory not exists')
 
@@ -251,7 +258,7 @@ class JewelryRender:
         else:
             # done - move obj files to rendered
             if __class__.objname:
-                __class__.moveobjtorendered(__class__.objname)
+                __class__.moveobjtorendered(context, __class__.objname)
             # and process next obj
             __class__.processobjlist(context)
 
@@ -307,8 +314,13 @@ class JewelryRender:
 
     @staticmethod
     def saverenderrezult(camera):
-        if os.path.exists(JewelryRenderOptions.options['dest_dir']):
-            path = JewelryRenderOptions.options['dest_dir'] + os.sep + os.path.splitext(__class__.objname)[0]   # dir + filename
+        path = JewelryRenderOptions.options['dest_dir']  # dir
+        if os.path.exists(path):
+            if bpy.context.scene.jewelry_render_vars.res_to_dirs:
+                path = os.path.join(path, os.path.splitext(__class__.objname)[0])   # dir/obj_name/
+                if not os.path.exists(path):
+                    os.makedirs(path)
+            path = os.path.join(path, os.path.splitext(__class__.objname)[0])   # dir/ + filename
             # + mat from mesh (not gravi)
             for mesh in sorted(__class__.obj, reverse=True, key=lambda x: x.name):
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:

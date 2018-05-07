@@ -45,9 +45,21 @@ class JewelryRenderStart(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class JewelryRenderVars(bpy.types.PropertyGroup):
+    res_to_dirs = bpy.props.BoolProperty(
+        name='Result To Directories',
+        description='Put results to named directories',
+        default=True
+    )
+
+
 def register():
     bpy.utils.register_class(JewelryRenderStart)
+    bpy.utils.register_class(JewelryRenderVars)
+    bpy.types.Scene.jewelry_render_vars = bpy.props.PointerProperty(type=JewelryRenderVars)
 
 
 def unregister():
+    del bpy.types.Scene.jewelry_render_vars
+    bpy.utils.unregister_class(JewelryRenderVars)
     bpy.utils.unregister_class(JewelryRenderStart)

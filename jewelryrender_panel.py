@@ -16,6 +16,7 @@ class JewelryRenderPanel(bpy.types.Panel):
 
     def draw(self, context):
         self.layout.operator('jewelryrender2.start', icon='RENDER_REGION', text='Serial Material Render')
+        self.layout.prop(context.scene.jewelry_render_vars, 'res_to_dirs')
 
 
 def register():
