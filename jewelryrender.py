@@ -10,6 +10,7 @@ import os
 import bpy
 import math
 import itertools
+import re
 
 
 class JewelryRender:
@@ -365,3 +366,12 @@ class JewelryRenderOptions:
     def readfromfile(dir):
         with open(dir + os.sep + 'options.json') as currentFile:
             __class__.options = json.load(currentFile)
+
+    @staticmethod
+    def parse_num_list(num_list_string):
+        # from '1, 3-5, 8' to [1, 3, 4, 5, 8]
+        linearr = [s.strip() for s in re.split(r'[,;]+| ,', num_list_string) if s]
+        linearrframes = [int(i) for i in linearr if '-' not in i]
+        linearrdiapasones = sum([list(range(int(i.split('-')[0]), int(i.split('-')[1]) + 1)) for i in linearr if '-' in i], [])
+        linearrframes.extend(linearrdiapasones)
+        return list(set(linearrframes))

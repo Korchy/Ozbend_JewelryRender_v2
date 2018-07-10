@@ -37,8 +37,26 @@ class JewelryRenderStart(bpy.types.Operator):
                 JewelryRenderOptions.cameraslist = [obj for obj in context.screen.scene.objects if obj.type == 'CAMERA']
             # search for materials
             JewelryRenderOptions.materialslist = [material for material in bpy.data.materials if material.use_fake_user]
-            JewelryRenderOptions.materialslist_gem = [material for material in JewelryRenderOptions.materialslist if material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid]
-            JewelryRenderOptions.materialslist_met = [material for material in JewelryRenderOptions.materialslist if material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid]
+            gems_filter = JewelryRenderOptions.parse_num_list(JewelryRenderOptions.options['gems'])
+            if gems_filter:
+                # from options.json
+                JewelryRenderOptions.materialslist_gem = [material for material in JewelryRenderOptions.materialslist if
+                                                          material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid
+                                                          and int(material.name[-2:]) in gems_filter]
+            else:
+                # no selection - all gems from scene
+                JewelryRenderOptions.materialslist_gem = [material for material in JewelryRenderOptions.materialslist if
+                                                          material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid]
+            mets_filter = JewelryRenderOptions.parse_num_list(JewelryRenderOptions.options['mets'])
+            if mets_filter:
+                # from options.json
+                JewelryRenderOptions.materialslist_met = [material for material in JewelryRenderOptions.materialslist if
+                                                          material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid
+                                                          and int(material.name[-2:]) in mets_filter]
+            else:
+                # no selection - all mets from scene
+                JewelryRenderOptions.materialslist_met = [material for material in JewelryRenderOptions.materialslist if
+                                                          material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid]
             # start processing obj by list
             print('-- STARTED --')
             JewelryRender.processobjlist(context)
