@@ -11,14 +11,19 @@ import bpy
 import math
 import itertools
 import re
+import copy
 
 
 class JewelryRender:
 
     objname = ''        # Name of current imported obj file
     obj = []            # list of current obj meshes
-    objd_m = []         # list of current obj meshes with dynamic metals
-    objd_g = []         # list of current obj meshes with dynamic gems
+    obj_m_00 = []       # list of current obj meshes with dynamic metals (00)
+    obj_g_00 = []       # list of current obj meshes with dynamic gems (00)
+    obj_m_0x = []       # list of current obj meshes with mets (01 ... 99) dynamic
+    obj_g_0x = []       # list of current obj meshes with gems (01 ... 99) dynamic
+    obj_m_0x_s = []     # list of current obj meshes with mets (01 ... 99) stable
+    obj_g_0x_s = []     # list of current obj meshes with gems (01 ... 99) stable
     gravi = []          # gravi meshes list
     mode = 'NOGRAVI'    # NOGRAVI, GRAVI
     variants = []       # render variants for current obj
@@ -42,7 +47,6 @@ class JewelryRender:
             __class__.clear()
             print('-- FINISHED --')
 
-
     @staticmethod
     def importobj(context, filename):
         # import current obj
@@ -52,26 +56,37 @@ class JewelryRender:
             __class__.obj = context.selected_objects
             __class__.gravi = __class__.getgravimesh()
             for mesh in __class__.obj:
-                if int(mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]) == 0:
-                    if mesh.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid:
-                        __class__.objd_m.append(mesh)
-                    elif mesh.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid:
-                        __class__.objd_g.append(mesh)
+                if mesh.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid:     # met
+                    if int(mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]) == 0:
+                        __class__.obj_m_00.append(mesh)     # met00
+                    else:
+                        if mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength] in JewelryRenderOptions.materialslist_mets_ads\
+                                and JewelryRenderOptions.materialslist_mets_ads[mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]]:
+                            __class__.obj_m_0x.append(mesh)     # met0x dynamic
+                        else:
+                            __class__.obj_m_0x_s.append(mesh)   # met0x stable
+                elif mesh.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialgemid:   # gem
+                    if int(mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]) == 0:
+                        __class__.obj_g_00.append(mesh)     # gem00
+                    else:
+                        if mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength] in JewelryRenderOptions.materialslist_gems_ads\
+                                and JewelryRenderOptions.materialslist_gems_ads[mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]]:
+                            __class__.obj_g_0x.append(mesh)     # gem0x dynamic
+                        else:
+                            __class__.obj_g_0x_s.append(mesh)   # gem0x stable
         else:
             print('Error importing ', filename)
             __class__.processobjlist(context)   # process next obj
 
-
     @staticmethod
     def setstablematerialstoobj(context):
-        # set stable materials to current obj
-        if __class__.obj:
-            for mesh in __class__.obj:
-                materialid = mesh.name[:JewelryRenderOptions.materialidlength]  # by obj mesh name
-                if int(materialid[JewelryRenderOptions.materialidtextlength:]) != 0:    # number not 00 - stable material
-                    for material in JewelryRenderOptions.materialslist:
-                        if material.name[:JewelryRenderOptions.materialidlength] == materialid:
-                            __class__.setmaterialtomesh(mesh, material)
+        # set stable materials to meshes
+        for mesh in __class__.obj_m_0x_s:
+            if mesh.name[:JewelryRenderOptions.materialidlength] in bpy.data.materials:
+                __class__.setmaterialtomesh(mesh, bpy.data.materials[mesh.name[:JewelryRenderOptions.materialidlength]])
+        for mesh in __class__.obj_g_0x_s:
+            if mesh.name[:JewelryRenderOptions.materialidlength] in bpy.data.materials:
+                __class__.setmaterialtomesh(mesh, bpy.data.materials[mesh.name[:JewelryRenderOptions.materialidlength]])
 
     @staticmethod
     def transformobj(context):
@@ -98,25 +113,44 @@ class JewelryRender:
     @staticmethod
     def makerendervariants():
         # create a list with all variants for current obj to render
-        # format: [camera1 => [mesh1 => current_mat, mesh2 => current_mat...] 'GRAVI', camera2 => ...]
+        # format: [[camera1, [[mesh1, current_mat], [mesh2, current_mat]...], 'GRAVI'], [camera1, [...], 'NOGRAVI'], [camera2,...]...]
         for camera in JewelryRenderOptions.cameraslist:
             # one metal material to all metal meshes
             for metmaterial in JewelryRenderOptions.materialslist_met:
-                objmetlist = []  # list: mesh => material
-                for metmesh in __class__.objd_m:
+                # met00
+                objmetlist = []  # list: [mesh, material]
+                for metmesh in __class__.obj_m_00:
                     objmetlist.append([metmesh, metmaterial])
-                # every gem material for every gem meshes
-                gemmatslist = itertools.product(JewelryRenderOptions.materialslist_gem, repeat=len(__class__.objd_g))
-                for item in gemmatslist:
-                    objgemlist = []  # list: mesh => material
-                    for i, mat in enumerate(item):
-                        objgemlist.append([__class__.objd_g[i], mat])
-                    # met + gem
-                    objalllist = objmetlist.copy()
-                    objalllist.extend(objgemlist)
+                # every dynamic material list (gem0x, gem00, met0x)
+                variants_mesh_list = []
+                variants_mats_list = []
+                # gem0x
+                for mesh in __class__.obj_g_0x:
+                    variants_mesh_list.append(mesh)
+                    variants_mats_list.append(JewelryRenderOptions.materialslist_gems_ads[mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]])
+                # met0x
+                for mesh in __class__.obj_m_0x:
+                    variants_mesh_list.append(mesh)
+                    variants_mats_list.append(JewelryRenderOptions.materialslist_mets_ads[mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]])
+                # gem00
+                for mesh in __class__.obj_g_00:
+                    variants_mesh_list.append(mesh)
+                    variants_mats_list.append(JewelryRenderOptions.materialslist_gem)
+                # get all variants
+                variants = list(itertools.product(*variants_mats_list))
+                # get summary list
+                for variant in variants:
+                    objalllist = []
+                    for i, mat in enumerate(variant):
+                        objalllist.append([variants_mesh_list[i], mat])
+                    objalllist.extend(objmetlist[:])
+                    # mat id's to scene materials
+                    objalllist_with_mats = []
+                    for mesh_mat in objalllist:
+                        objalllist_with_mats.append([mesh_mat[0], bpy.data.materials[mesh_mat[0].name[:JewelryRenderOptions.materialidtextlength] + str(mesh_mat[1]).zfill(2)]])
                     # add new variant to list
-                    newvariant_ng = [camera, objalllist, 'NOGRAVI']
-                    newvariant_g = [camera, objalllist, 'GRAVI']
+                    newvariant_ng = [camera, objalllist_with_mats, 'NOGRAVI']
+                    newvariant_g = [camera, objalllist_with_mats, 'GRAVI']
                     if newvariant_ng not in __class__.variants:
                         __class__.variants.append(newvariant_ng.copy())
                     if __class__.gravi and newvariant_g not in __class__.variants:
@@ -269,8 +303,12 @@ class JewelryRender:
         if __class__.obj:
             __class__.removeobj()
         __class__.obj = []
-        __class__.objd_m = []
-        __class__.objd_g = []
+        __class__.obj_m_00 = []
+        __class__.obj_g_00 = []
+        __class__.obj_m_0x = []
+        __class__.obj_g_0x = []
+        __class__.obj_m_0x_s = []
+        __class__.obj_g_0x_s = []
         __class__.gravi = []
         __class__.mode = 'NOGRAVI'
         __class__.variants = []
@@ -325,7 +363,7 @@ class JewelryRender:
             # + mat from mesh (not gravi)
             for mesh in sorted(__class__.obj, reverse=True, key=lambda x: x.name):
                 if JewelryRenderOptions.options['gravi_mesh_name'] not in mesh.name:
-                    if mesh.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength] == '00':  # only for meshes with dynamic materials
+                    if mesh in __class__.obj_m_00 or mesh in __class__.obj_m_0x or mesh in __class__.obj_g_00 or mesh in __class__.obj_g_0x:    # only for meshes with dynamic materials
                         if mesh.data.materials:
                             path += '_' + mesh.data.materials[0].name[:JewelryRenderOptions.materialidlength]   # + mat from mesh material
                         else:
@@ -354,11 +392,13 @@ class JewelryRenderOptions:
     options = None
     objlist = []    # list of filenames
     cameraslist = []
-    materialslist = []
-    materialslist_met = []
-    materialslist_gem = []
-    materialidlength = 5        # identifier length (ex: MET01, GEM01)
-    materialidtextlength = 3    # identifier material length (ex: MET, GEM)
+    materialslist = []              # all meterials in scene
+    materialslist_met = []          # all mets maretials id used in obj (after filtration by options)   [1, 2]
+    materialslist_gem = []          # all gems maretials id used in obj (after filtration by options)   [1, 2]
+    materialslist_mets_ads = {}     # dict with mets_ads filter (from options)  {'01': [1, 2], "02": [1]}
+    materialslist_gems_ads = {}     # dict with gems_ads filter (from options)  {'01': [1, 2], "02": [1]}
+    materialidlength = 5            # identifier length (ex: MET01, GEM01)
+    materialidtextlength = 3        # identifier material length (ex: MET, GEM)
     materialmetid = 'Met'
     materialgemid = 'Gem'
 

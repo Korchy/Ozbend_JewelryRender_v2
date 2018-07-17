@@ -25,5 +25,13 @@
 	"cameras": [],
 	"mets": "",
 	"gems": "",
+	"mets_ads": {
+		"01": "",
+		"02": ""
+	},
+	"gems_ads": {
+		"01": "",
+		"02": ""
+	},
 	"gravi_mesh_name": "Gravi"
 }
