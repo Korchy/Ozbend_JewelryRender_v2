@@ -85,14 +85,6 @@ class JewelryRenderStart(bpy.types.Operator):
                 # no selection - all mets from scene
                 JewelryRenderOptions.materialslist_met = [int(material.name[JewelryRenderOptions.materialidtextlength:JewelryRenderOptions.materialidlength]) for material in JewelryRenderOptions.materialslist if
                                                           material.name[:JewelryRenderOptions.materialidtextlength] == JewelryRenderOptions.materialmetid]
-
-
-            # print('materialslist_gem', JewelryRenderOptions.materialslist_gem)
-            # print('materialslist_gems_ads', JewelryRenderOptions.materialslist_gems_ads)
-            # print('materialslist_met', JewelryRenderOptions.materialslist_met)
-            # print('materialslist_mets_ads', JewelryRenderOptions.materialslist_mets_ads)
-            # return
-
             # start processing obj by list
             print('-- STARTED --')
             JewelryRender.processobjlist(context)
